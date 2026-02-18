@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Browser ONNX Text Classifier</title>
+  <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
+
+  <style>
+    body {
+      font-family: Arial;
+      max-width: 700px;
+      margin: 40px auto;
+    }
+    textarea {
+      width: 100%;
+      height: 120px;
+      font-size: 16px;
+      padding: 10px;
+    }
+    button {
+      padding: 12px 20px;
+      margin-top: 10px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    #result {
+      margin-top: 20px;
+      font-weight: bold;
+      font-size: 18px;
+    }
+  </style>
+</head>
+
+<body>
+
+<h2>ONNX Text Classifier (Browser)</h2>
+
+<textarea id="inputText" placeholder="Enter text here..."></textarea>
+<br>
+<button onclick="runModel()">Classify</button>
+
+<div id="result">Loading model...</div>
+
+<script>
+let session;
+
+async function loadModel() {
+  session = await ort.InferenceSession.create("/model/model_quant.onnx", {
+    executionProviders: ["wasm"]
+  });
+  document.getElementById("result").innerText = "Model ready!";
+}
+
+loadModel();
+
+function simpleTokenizer(text) {
+  // Replace with real tokenizer later
+  const maxLen = 32;
+  let tokens = new Array(maxLen).fill(0);
+  const words = text.toLowerCase().split(" ");
+
+  for (let i = 0; i < Math.min(words.length, maxLen); i++) {
+    tokens[i] = words[i].length + 1;
+  }
+
+  return tokens;
+}
+
+async function runModel() {
+  const text = document.getElementById("inputText").value;
+
+  const inputIds = simpleTokenizer(text);
+
+  const tensor = new ort.Tensor(
+    "int64",
+    BigInt64Array.from(inputIds.map(v => BigInt(v))),
+    [1, inputIds.length]
+  );
+
+  const feeds = { input_ids: tensor };
+
+  const results = await session.run(feeds);
+
+  const output = results[Object.keys(results)[0]].data;
+
+  document.getElementById("result").innerText =
+    "Prediction score: " + output[0].toFixed(4);
+}
+</script>
+
+</body>
+</html>
